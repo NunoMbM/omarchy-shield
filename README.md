@@ -1,6 +1,7 @@
 # omarchy-shield
 Omarchy plugin to improve security 
-#  omarchy-shield
+
+# omarchy-shield
 
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)](https://archlinux.org/)
 [![Omarchy 4 Quattro](https://img.shields.io/badge/Omarchy_4-Quattro-10b981?style=for-the-badge)](https://omarchy.org/)
@@ -14,7 +15,7 @@ Omarchy plugin to improve security
 
 ---
 
-##  UI Layout (`FloatingWindow` Security Deck)
+## UI Layout (`FloatingWindow` Security Deck)
 
 ```text
 ┌──────────────────────────────────────────────────────────┐

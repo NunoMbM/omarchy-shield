@@ -212,7 +212,9 @@ set_usb_power() {
     udevadm control --reload 2>/dev/null || true
 
     for ctrl in /sys/bus/usb/devices/*/power/control; do
-        [[ -w "$ctrl" ]] && echo "$target" > "$ctrl" 2>/dev/null || true
+        if [[ -w "$ctrl" ]]; then
+            echo "$target" > "$ctrl" 2>/dev/null || true
+        fi
     done
 }
 

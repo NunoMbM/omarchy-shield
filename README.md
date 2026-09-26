@@ -1,7 +1,7 @@
 # omarchy-shield
 Omarchy plugin to improve security 
 
-# 🛡️ omarchy-shield
+#  omarchy-shield
 
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)](https://archlinux.org/)
 [![Omarchy 4 Quattro](https://img.shields.io/badge/Omarchy_4-Quattro-10b981?style=for-the-badge)](https://omarchy.org/)
@@ -15,7 +15,7 @@ Omarchy plugin to improve security
 
 ---
 
-## 📸 Preview & UI Layout
+##  Preview & UI Layout
 
 > *Replace the paths below with screenshots of your bar pill and popup deck once uploaded to your repository's `assets/` folder.*
 
@@ -51,7 +51,7 @@ Omarchy plugin to improve security
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
 * **Three Context-Aware Security Modes:** Switch instantly between **Public / Travel** (maximum lockdown), **Daily Workstation** (balanced hardened), and **Lab & Gaming** (hardware & debug unlocked).
 * **Timed Auto-Revert Leases (Dead-Man Switch):** Unlocking `dmesg` or hardware ports in **Lab & Gaming** mode starts a transient `systemd-run` countdown (`15m` to `240m`). When the timer expires, your system automatically locks back down to **Daily Workstation** mode.
@@ -74,7 +74,7 @@ Omarchy plugin to improve security
 
 ---
 
-## 📦 Installation
+##  Installation
 
 ### Option 1: Install via AUR Helper (`yay` / `paru`)
 
@@ -99,7 +99,7 @@ makepkg -si
 
 ---
 
-## 🚀 Setup & Quickshell Integration
+##  Setup & Quickshell Integration
 
 ### 1. Test the Widget Standalone
 Verify both the unprivileged JSON telemetry stream and the floating UI bar immediately after installation:
@@ -143,7 +143,7 @@ sudo limine-update
 
 ---
 
-## ⌨️ CLI & Hyprland Keybind Usage
+##  CLI & Hyprland Keybind Usage
 
 You can also trigger `omarchy-shield-ctl` directly from the terminal or bind modes to keys in `~/.config/hypr/hyprland.conf`:
 
@@ -173,7 +173,7 @@ bind = SUPER SHIFT, L, exec, omarchy-shield-ctl apply lab 1 60 0
 
 ---
 
-## 🗑️ Uninstallation
+##  Uninstallation
 
 Because all files are tracked by `pacman`, removing the package cleanly deletes the binary, Polkit policy, QML assets, and transient `/run/omarchy-shield.*` state files:
 
@@ -183,6 +183,6 @@ sudo pacman -Rns omarchy-shield
 
 ---
 
-## 📄 License
+##  License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.

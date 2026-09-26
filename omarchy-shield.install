@@ -1,0 +1,23 @@
+post_install() {
+    echo ":: omarchy-shield installed successfully."
+    echo "::"
+    echo ":: 1. Backend CLI verified at: /usr/bin/omarchy-shield-ctl"
+    echo ":: 2. Test the standalone bar widget with:"
+    echo "::    quickshell -p /usr/share/quickshell/omarchy-shield/shell.qml"
+    echo "::"
+    echo ":: 3. To embed into your existing Omarchy bar layout, add:"
+    echo "::    import \"/usr/share/quickshell/omarchy-shield\""
+    echo "::    and place 'ShieldWidget {}' in your panel hierarchy."
+}
+
+post_upgrade() {
+    post_install
+}
+
+post_remove() {
+    # Clean up transient runtime files if still active
+    rm -f /run/omarchy-shield.state \
+          /run/omarchy-shield.expiry \
+          /run/omarchy-shield.devports 2>/dev/null || true
+    echo ":: omarchy-shield runtime files cleaned up."
+}

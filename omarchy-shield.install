@@ -15,10 +15,12 @@ post_upgrade() {
 }
 
 post_remove() {
-    # Clean up transient runtime files if still active
+    # Clean up transient runtime files and udev rules if still active
     rm -f /run/omarchy-shield.state \
           /run/omarchy-shield.expiry \
           /run/omarchy-shield.devports \
-          /run/omarchy-shield.uid 2>/dev/null || true
+          /run/omarchy-shield.uid \
+          /run/udev/rules.d/99-omarchy-shield-usb.rules 2>/dev/null || true
+    udevadm control --reload 2>/dev/null || true
     echo ":: omarchy-shield runtime files cleaned up."
 }

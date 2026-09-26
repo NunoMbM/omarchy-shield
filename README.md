@@ -1,6 +1,5 @@
 # omarchy-shield
 Omarchy plugin to improve security 
-
 #  omarchy-shield
 
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)](https://archlinux.org/)
@@ -11,17 +10,11 @@ Omarchy plugin to improve security
 
 **Context-aware kernel security, USB hardware debugger policy, and firewall profile switcher for Omarchy 4 (Quattro) and Quickshell.**
 
-`omarchy-shield` bridges the gap between strict Linux kernel hardening and daily engineering/gaming workflows. Instead of permanently weakening your system to use hardware debuggers (`probe-rs`, `OpenOCD`, `gdb`), serial monitors (`dmesg`), or Steam Proton—or leaving your laptop exposed on public Wi-Fi—`omarchy-shield` gives you a native Quickshell bar widget with **one-click security presets**, **timed auto-revert leases**, and **live privilege telemetry**.
+`omarchy-shield` bridges the gap between strict Linux kernel hardening and daily engineering/gaming workflows. Instead of permanently weakening your system to use hardware debuggers (`probe-rs`, `OpenOCD`, `gdb`), serial monitors (`dmesg`), or Steam Proton—or leaving your laptop exposed on public Wi-Fi—`omarchy-shield` provides a native Quickshell bar widget with **one-click security presets**, **timed auto-revert leases**, and **live privilege telemetry**.
 
 ---
 
-##  Preview & UI Layout
-
-> *Replace the paths below with screenshots of your bar pill and popup deck once uploaded to your repository's `assets/` folder.*
-
-| Top Bar Indicator Pills | Interactive Security Deck (`FloatingWindow`) |
-| :---: | :---: |
-| ![Bar Pill Preview](assets/bar-pills-preview.png) | ![Security Deck Preview](assets/security-deck-preview.png) |
+##  UI Layout (`FloatingWindow` Security Deck)
 
 ```text
 ┌──────────────────────────────────────────────────────────┐
@@ -30,7 +23,7 @@ Omarchy plugin to improve security
 │ 1. Security & Hardware Profile                           │
 │  [ Public / Travel ]  [ Workstation ]  [ Lab & Gaming ]  │
 │                                                          │
-│ Auto-Revert Lease Timer (Lab Mode):               60 min │
+│ Lab Lease Duration:                     60 min (58m left)│
 │ ━━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
 │                                                          │
 │ Process Memory Isolation (ptrace):  Level 1 (GDB/Proton) │
@@ -53,11 +46,11 @@ Omarchy plugin to improve security
 
 ##  Key Features
 
-* **Three Context-Aware Security Modes:** Switch instantly between **Public / Travel** (maximum lockdown), **Daily Workstation** (balanced hardened), and **Lab & Gaming** (hardware & debug unlocked).
-* **Timed Auto-Revert Leases (Dead-Man Switch):** Unlocking `dmesg` or hardware ports in **Lab & Gaming** mode starts a transient `systemd-run` countdown (`15m` to `240m`). When the timer expires, your system automatically locks back down to **Daily Workstation** mode.
-* **USB Debug Probe Wake Lock:** Automatically disables Linux USB autosuspend (`power/control = on`) while in **Lab & Gaming** mode so ST-Link, J-Link, CMSIS-DAP, ESP32 USB-JTAG bridges, and game controllers never drop connections mid-session.
-* **AI Agent & Passwordless Sudo Killswitch:** Detects if `sudo` credentials are cached or if Omarchy 4's `passwordless sudo` rule for AI coding agents is active, turning the top-bar indicator **Red** with a 1-click revoke button.
-* **Strict Privilege Separation (No Sudoers Hacks):** Telemetry runs 100% unprivileged (`0.0% CPU`, `< 5 MB RAM`). Kernel and firewall mutations execute through a `root:root` binary (`/usr/bin/omarchy-shield-ctl`) gated by Polkit (`pkexec` with `auth_admin_keep`).
+* **Three Context-Aware Security Presets:** Switch between **Public / Travel** (strict lockdown), **Daily Workstation** (balanced hardened), and **Lab & Gaming** (hardware & debug unlocked).
+* **Timed Auto-Revert Leases:** Entering **Lab & Gaming** mode starts a transient `systemd-run` countdown (`15m` to `240m`). Tuning `ptrace` or firewall ports mid-session preserves the active countdown (`keep` flag), and when the timer expires, your system automatically reverts to **Daily Workstation** mode with a desktop notification.
+* **USB Debug Probe Wake Lock:** Disables Linux USB autosuspend (`power/control = on`) while in **Lab & Gaming** mode so ST-Link, J-Link, CMSIS-DAP, ESP32 USB-JTAG bridges, and game controllers do not disconnect mid-session.
+* **AI Agent & Passwordless Sudo Killswitch:** Detects if `sudo` credentials are cached or if `/etc/sudoers.d/omarchy-passwordless` is active, turning the top-bar indicator **Red** with a 1-click revoke button.
+* **Strict Privilege Separation & Input Validation:** Telemetry polling runs 100% unprivileged (`0.0% CPU`, `< 5 MB RAM`). Privileged actions execute through `/usr/bin/omarchy-shield-ctl` gated by Polkit (`auth_admin` without cached credential windows) and strict argument validation.
 
 ---
 
@@ -65,24 +58,34 @@ Omarchy plugin to improve security
 
 | Parameter / Subsystem |  `Public / Travel` |  `Daily Workstation` *(Default)* |  `Lab & Gaming` *(Timed Lease)* |
 | :--- | :--- | :--- | :--- |
-| **Process Memory Attach (`yama.ptrace_scope`)** | `2` *(Admin Only — Blocks all ptrace)* | `1` *(Allows GDB & Steam Proton)* | `1` *(Allows `probe-rs`, `OpenOCD`, Proton)* |
+| **Process Memory Attach (`yama.ptrace_scope`)** | `2` *(Admin Only — Locked)* | `1` *(Configurable `1` or `2`)* | `1` *(Configurable `1` or `2`)* |
 | **Kernel Ring Buffer (`kernel.dmesg_restrict`)** | `1` *(Hidden from user apps)* | `1` *(Hidden from user apps)* | `0` *(Unlocked for live `dmesg -w` USB logs)* |
 | **Kernel Address Exposure (`kptr_restrict`)** | `2` *(Strict KASLR protection)* | `2` *(Strict KASLR protection)* | `2` *(Strict KASLR protection)* |
 | **USB Autosuspend (`power/control`)** | `auto` *(Battery saving)* | `auto` *(Battery saving)* | `on` *(Keeps JTAG/SWD probes awake)* |
-| **MCU / Debug Firewall Ports (`ufw`)** | Closed (`deny incoming`) | Closed *( unless toggled )* | Optional 1-click `1883` (MQTT) & `3333` (OpenOCD) |
+| **MCU / Debug Firewall Ports (`ufw`)** | Closed (`deny incoming`) | Optional (`1883` / `3333`) | Optional (`1883` MQTT / `3333` OpenOCD) |
 | **Sudo / AI Passwordless Cache** | Purged immediately on entry | Monitored live | Monitored live |
 
 ---
 
 ##  Installation
 
- follows standard Arch Linux packaging guidelines—no `curl | sh` scripts or untracked files in `/usr/local`:
+### Option 1: Install from Source (`makepkg`)
+
+Clone the repository, generate the SHA-256 checksums, and build with `makepkg`:
 
 ```bash
-git clone [https://github.com/yourusername/omarchy-shield.git](https://github.com/yourusername/omarchy-shield.git)
+git clone [https://github.com/NunoMbM/omarchy-shield.git](https://github.com/NunoMbM/omarchy-shield.git)
 cd omarchy-shield
 updpkgsums
 makepkg -si
+```
+
+### Option 2: Install via AUR Helper (`yay` / `paru`)
+
+Once published to the AUR:
+
+```bash
+yay -S omarchy-shield
 ```
 
 ---
@@ -90,10 +93,8 @@ makepkg -si
 ##  Setup & Quickshell Integration
 
 ### 1. Test the Widget Standalone
-Verify both the unprivileged JSON telemetry stream and the floating UI bar immediately after installation:
-
 ```bash
-# Verify JSON telemetry output (runs unprivileged, no password prompt)
+# Verify JSON telemetry output (unprivileged)
 omarchy-shield-ctl status
 
 # Launch standalone floating bar window
@@ -101,7 +102,7 @@ quickshell -p /usr/share/quickshell/omarchy-shield/shell.qml
 ```
 
 ### 2. Embed into Your Omarchy Quickshell Bar
-Open your main Omarchy Quickshell configuration (typically `~/.config/quickshell/shell.qml` or your top bar layout file), import the module directory, and place `ShieldWidget {}` inside your `RowLayout`:
+Import `/usr/share/quickshell/omarchy-shield` inside your main `~/.config/quickshell/shell.qml` and add `ShieldWidget {}` to your bar layout:
 
 ```qml
 import Quickshell
@@ -110,45 +111,35 @@ import QtQuick.Layouts
 import "/usr/share/quickshell/omarchy-shield"
 
 PanelWindow {
-    // ... your existing bar configuration ...
     RowLayout {
-        // Drop the security pill alongside your system tray / clock
         ShieldWidget {}
     }
 }
 ```
 
-### 3. (Recommended) Enable Boot-Level Kernel Lockdown in Limine
-While `omarchy-shield` controls runtime kernel parameters dynamically, you can pair it with boot-time **Kernel Lockdown (`integrity`)** and **Heap Memory Zeroing** in `/etc/default/limine`:
-
-```bash
-# Append to /etc/default/limine:
-KERNEL_CMDLINE[default]+="lsm=landlock,lockdown,yama,integrity,apparmor,bpf lockdown=integrity init_on_alloc=1"
-
-# Regenerate the Omarchy Unified Kernel Image (UKI):
-sudo limine-update
-```
-
 ---
 
-##  CLI & Hyprland Keybind Usage
+##  CLI Subcommands & Hyprland Keybinds
 
-You can also trigger `omarchy-shield-ctl` directly from the terminal or bind modes to keys in `~/.config/hypr/hyprland.conf`:
+`omarchy-shield-ctl` supports four subcommands (`status`, `apply`, `revoke-sudo`, and `bios`):
 
 ```bash
 # Print live JSON telemetry (unprivileged)
 omarchy-shield-ctl status
 
-# Switch to Public Lockdown mode
+# Apply Public / Travel lockdown
 omarchy-shield-ctl apply public 2 0 0
 
-# Switch to Daily Workstation mode
+# Apply Daily Workstation mode (ptrace=1, lease=0, dev_ports=0)
 omarchy-shield-ctl apply daily 1 0 0
 
-# Switch to Lab & Gaming mode with a 90-minute auto-revert lease and OpenOCD/MQTT ports open
-omarchy-shield-ctl apply lab 1 90 1
+# Apply Lab & Gaming mode with a 60-minute auto-revert lease and OpenOCD/MQTT ports open
+omarchy-shield-ctl apply lab 1 60 1
 
-# Immediately revoke cached sudo and kill passwordless AI sudo rules
+# Update ptrace to Level 2 inside Lab mode WITHOUT resetting the running lease timer ('keep')
+omarchy-shield-ctl apply lab 2 keep 1
+
+# Revoke cached sudo credentials and remove /etc/sudoers.d/omarchy-passwordless
 omarchy-shield-ctl revoke-sudo
 ```
 
@@ -161,13 +152,10 @@ bind = SUPER SHIFT, L, exec, omarchy-shield-ctl apply lab 1 60 0
 
 ---
 
-##  Uninstallation
+##  Security Model Notes
 
-Because all files are tracked by `pacman`, removing the package cleanly deletes the binary, Polkit policy, QML assets, and transient `/run/omarchy-shield.*` state files:
-
-```bash
-sudo pacman -Rns omarchy-shield
-```
+* **Polkit Granularity:** Polkit authorizes execution of `/usr/bin/omarchy-shield-ctl` using `auth_admin` (no cached authentication window). Once authenticated, the script validates all positional arguments against a strict whitelist (`public|daily|lab`, `ptrace` `1|2`, `lease` `0-240|keep`, `dev_ports` `0|1`) before invoking `sysctl` or `ufw`.
+* **Boot-Level Hardening:** For full kernel lockdown (`lockdown=integrity`) and heap zeroing (`init_on_alloc=1`), add `lsm=landlock,lockdown,yama,integrity,apparmor,bpf lockdown=integrity init_on_alloc=1` to `KERNEL_CMDLINE[default]` in `/etc/default/limine` and run `sudo limine-update`.
 
 ---
 

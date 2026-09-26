@@ -155,13 +155,3 @@ bind = SUPER SHIFT, L, exec, omarchy-shield-ctl apply lab 1 60 0
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
 
----
-
-### Detalhe importante antes de fazeres `git push` (Ordem dos Jobs no CI)
-
-Como tens duas GitHub Actions no repositório (`update-checksums.yml`[cite: 6] e a nova `ci.yml`), atenção a um detalhe clássico de concorrência em pipelines Arch Linux:
-* Quando fizeres `git push` com as alterações ao `omarchy-shield-ctl`, `ShieldWidget.qml` e `PKGBUILD`, os hashes SHA-256 antigos no `PKGBUILD` estarão temporariamente desatualizados até que o `update-checksums.yml` corra e faça o commit automático `chore(pkgbuild): update real sha256sums [skip ci]`[cite: 6].
-* Se o job `arch-packaging` no `ci.yml` correr `makepkg -s --nodeps` antes de os hashes serem atualizados, o `makepkg` vai falhar na verificação de `sha256sums`!
-* Para que o `ci.yml` valide o pacote em qualquer commit sem depender do commit assíncrono do bot, troca a linha `su builder -c "makepkg -s --nodeps --noconfirm"` no `.github/workflows/ci.yml` por:
-  ```yaml
-  su builder -c "makepkg -s --nodeps --skipchecksums --noconfirm"

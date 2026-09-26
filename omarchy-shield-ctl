@@ -206,7 +206,6 @@ case "$ACTION" in
                 ;;
 
             daily)
-                notify_user "low" "Daily Workstation Mode Active" "ptrace=${CUSTOM_PTRACE}, dmesg restricted, USB power auto."
                 clear_lease_timer
                 sysctl -w kernel.yama.ptrace_scope="$CUSTOM_PTRACE" >/dev/null
                 sysctl -w kernel.dmesg_restrict=1 >/dev/null
@@ -214,6 +213,7 @@ case "$ACTION" in
                 set_usb_power "auto"
                 sync_dev_ports "$ENABLE_DEV_PORTS"
                 echo "daily" > "$STATE_FILE"
+                notify_user "low" "Daily Workstation Mode Active" "ptrace=${CUSTOM_PTRACE}, dmesg restricted, USB power auto."
                 ;;
 
             lab)

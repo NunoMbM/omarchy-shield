@@ -76,18 +76,6 @@ Omarchy plugin to improve security
 
 ##  Installation
 
-### Option 1: Install via AUR Helper (`yay` / `paru`)
-
-Once published to the Arch User Repository (AUR), install directly with:
-
-```bash
-yay -S omarchy-shield
-# or
-paru -S omarchy-shield
-```
-
-### Option 2: Manual Build from Source (`makepkg`)
-
  follows standard Arch Linux packaging guidelines—no `curl | sh` scripts or untracked files in `/usr/local`:
 
 ```bash

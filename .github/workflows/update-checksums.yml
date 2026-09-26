@@ -1,0 +1,107 @@
+name: CI & Auto-Update PKGBUILD Checksums
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats shellcheck
+
+      - name: 1. Run ShellCheck on omarchy-shield-ctl
+        run: shellcheck -s bash omarchy-shield-ctl
+
+      - name: 2. Run Bats unit tests
+        run: bats tests/omarchy-shield.bats
+
+      - name: 3. Update SHA-256 Checksums, Validate Arch Package & Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          update_pkgbuild_sums() {
+            H1=$(sha256sum omarchy-shield-ctl | awk '{print $1}')
+            H2=$(sha256sum org.omarchy.shield.policy | awk '{print $1}')
+            H3=$(sha256sum ShieldWidget.qml | awk '{print $1}')
+            H4=$(sha256sum shell.qml | awk '{print $1}')
+            H5=$(sha256sum LICENSE | awk '{print $1}')
+
+            python3 - <<EOF
+          import re
+          with open('PKGBUILD', 'r') as f:
+              content = f.read()
+          new_sums = """sha256sums=(
+              '$H1'
+              '$H2'
+              '$H3'
+              '$H4'
+              '$H5'
+          )"""
+          updated = re.sub(r'# Run .*?\nsha256sums=\([^)]+\)', new_sums, content, flags=re.DOTALL)
+          updated = re.sub(r'sha256sums=\([^)]+\)', new_sums, updated, flags=re.DOTALL)
+          with open('PKGBUILD', 'w') as f:
+              f.write(updated)
+          EOF
+          }
+
+          # Update sums locally first so makepkg validates real hashes
+          update_pkgbuild_sums
+
+          # Build package and run namcap inside isolated Arch Linux container
+          docker run --rm -v "$PWD:/repo:ro" archlinux:latest bash -euxc '
+            pacman -Syu --noconfirm base-devel namcap
+            useradd -m builder
+            cp -r /repo /tmp/build
+            chown -R builder:builder /tmp/build
+            cd /tmp/build
+            su builder -c "makepkg -s --nodeps --noconfirm"
+            namcap -i PKGBUILD
+            namcap -i omarchy-shield-*.pkg.tar.*
+          '
+
+          # Only push updated PKGBUILD on direct pushes to main (not PRs)
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "Pull request detected; skipping PKGBUILD auto-commit."
+            exit 0
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            if (( attempt > 1 )); then
+              git fetch origin main
+              git reset --hard origin/main
+              update_pkgbuild_sums
+            fi
+
+            if [[ -z $(git status --porcelain PKGBUILD) ]]; then
+              echo "No checksum changes, nothing to commit."
+              exit 0
+            fi
+
+            git add PKGBUILD
+            git commit -m "chore(pkgbuild): update real sha256sums [skip ci]"
+
+            if git push origin HEAD:main; then
+              echo "Push succeeded on attempt $attempt."
+              exit 0
+            fi
+
+            echo "Push rejected (attempt $attempt), retrying after backoff..."
+            sleep $(( RANDOM % 5 + 1 ))
+          done
+
+          echo "::error::Failed to push updated PKGBUILD after 5 attempts."
+          exit 1

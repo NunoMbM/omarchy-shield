@@ -27,12 +27,11 @@ source=(
     "ShieldWidget.qml"
     "shell.qml"
 )
-# Run 'updpkgsums' after saving to replace these with real SHA-256 hashes:
 sha256sums=(
-    'SKIP'
-    'SKIP'
-    'SKIP'
-    'SKIP'
+    '0fd206f634a2478b64b7486b4f279b52809d688ab9701812929ca81f2a4a09da'
+    'cca91031c3a8191189939497dc0f36bb6905f6436178da8a705528f8a520b5e1'
+    '7cb1ff9917498ab8a8ce7b7697fa71474cec013f73b412f03dcdc4dedd04dd80'
+    '839e1d76aa962978bbd7f7acaffd12eff89dd5431f115281e18e0b60e2021d45'
 )
 
 package() {

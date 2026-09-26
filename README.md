@@ -61,9 +61,9 @@ Omarchy plugin to improve security
 
 ---
 
-## 🎛️ Profile Matrix
+##  Profile Matrix
 
-| Parameter / Subsystem | 🛡️ `Public / Travel` | 💻 `Daily Workstation` *(Default)* | 🔬 `Lab & Gaming` *(Timed Lease)* |
+| Parameter / Subsystem |  `Public / Travel` |  `Daily Workstation` *(Default)* |  `Lab & Gaming` *(Timed Lease)* |
 | :--- | :--- | :--- | :--- |
 | **Process Memory Attach (`yama.ptrace_scope`)** | `2` *(Admin Only — Blocks all ptrace)* | `1` *(Allows GDB & Steam Proton)* | `1` *(Allows `probe-rs`, `OpenOCD`, Proton)* |
 | **Kernel Ring Buffer (`kernel.dmesg_restrict`)** | `1` *(Hidden from user apps)* | `1` *(Hidden from user apps)* | `0` *(Unlocked for live `dmesg -w` USB logs)* |

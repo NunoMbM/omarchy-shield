@@ -7,6 +7,7 @@ set -euo pipefail
 STATE_FILE="/run/omarchy-shield.state"
 EXPIRY_FILE="/run/omarchy-shield.expiry"
 DEVPORT_FILE="/run/omarchy-shield.devports"
+UID_FILE="/run/omarchy-shield.uid"
 TIMER_UNIT="omarchy-shield-lease"
 SUDOERS_AI_FILE="/etc/sudoers.d/omarchy-passwordless"
 
@@ -80,6 +81,39 @@ fi
 # ------------------------------------------------------------------------------
 # 3. HELPER FUNCTIONS (Root context)
 # ------------------------------------------------------------------------------
+resolve_target_uid() {
+    # Priority 1: Direct caller UID provided by Polkit pkexec
+    if [[ -n "${PKEXEC_UID:-}" && "${PKEXEC_UID}" -ne 0 ]]; then
+        echo "${PKEXEC_UID}"
+        return 0
+    fi
+
+    # Priority 2: Stored UID from the user who armed the active lease timer
+    if [[ -f "$UID_FILE" ]]; then
+        local saved_uid
+        saved_uid=$(cat "$UID_FILE" 2>/dev/null || true)
+        if [[ "$saved_uid" =~ ^[0-9]+$ && "$saved_uid" -ne 0 ]]; then
+            echo "$saved_uid"
+            return 0
+        fi
+    fi
+
+    # Priority 3: Query systemd-logind for the currently active graphical session
+    if command -v loginctl >/dev/null 2>&1; then
+        local sid active type uid
+        while read -r sid _ _ _ _; do
+            [[ -z "$sid" ]] && continue
+            active=$(loginctl show-session "$sid" -p Active --value 2>/dev/null || true)
+            type=$(loginctl show-session "$sid" -p Type --value 2>/dev/null || true)
+            uid=$(loginctl show-session "$sid" -p User --value 2>/dev/null || true)
+            if [[ "$active" == "yes" && ( "$type" == "wayland" || "$type" == "x11" ) && "$uid" -ne 0 ]]; then
+                echo "$uid"
+                return 0
+            fi
+        done < <(loginctl list-sessions --no-legend 2>/dev/null)
+    fi
+}
+
 notify_user() {
     local urgency="$1"
     local title="$2"
@@ -87,16 +121,8 @@ notify_user() {
 
     command -v notify-send >/dev/null 2>&1 || return 0
 
-    # Identify active graphical user UID (via pkexec or active /run/user bus)
-    local target_uid="${PKEXEC_UID:-}"
-    if [[ -z "$target_uid" || "$target_uid" -eq 0 ]]; then
-        for bus_dir in /run/user/*; do
-            if [[ -S "${bus_dir}/bus" ]]; then
-                target_uid="${bus_dir##*/}"
-                break
-            fi
-        done
-    fi
+    local target_uid
+    target_uid=$(resolve_target_uid || true)
 
     if [[ -n "$target_uid" && -S "/run/user/${target_uid}/bus" ]]; then
         sudo -u "#${target_uid}" \
@@ -108,7 +134,7 @@ notify_user() {
 clear_lease_timer() {
     systemctl stop "${TIMER_UNIT}.timer" "${TIMER_UNIT}.service" 2>/dev/null || true
     systemctl reset-failed "${TIMER_UNIT}.timer" "${TIMER_UNIT}.service" 2>/dev/null || true
-    rm -f "$EXPIRY_FILE"
+    rm -f "$EXPIRY_FILE" "$UID_FILE"
 }
 
 set_usb_power() {
@@ -142,7 +168,6 @@ case "$ACTION" in
         LEASE_ARG="${4:-keep}"
         ENABLE_DEV_PORTS="${5:-0}"
 
-        # Strict Input Validation
         if [[ ! "$TARGET_MODE" =~ ^(public|daily|lab)$ ]]; then
             echo "Error: Invalid mode '$TARGET_MODE'. Expected: public, daily, lab." >&2
             exit 1
@@ -181,6 +206,7 @@ case "$ACTION" in
                 ;;
 
             daily)
+                notify_user "low" "Daily Workstation Mode Active" "ptrace=${CUSTOM_PTRACE}, dmesg restricted, USB power auto."
                 clear_lease_timer
                 sysctl -w kernel.yama.ptrace_scope="$CUSTOM_PTRACE" >/dev/null
                 sysctl -w kernel.dmesg_restrict=1 >/dev/null
@@ -188,7 +214,6 @@ case "$ACTION" in
                 set_usb_power "auto"
                 sync_dev_ports "$ENABLE_DEV_PORTS"
                 echo "daily" > "$STATE_FILE"
-                notify_user "low" "Daily Workstation Mode Active" "ptrace=${CUSTOM_PTRACE}, dmesg restricted, USB power auto."
                 ;;
 
             lab)
@@ -199,12 +224,14 @@ case "$ACTION" in
                 sync_dev_ports "$ENABLE_DEV_PORTS"
                 echo "lab" > "$STATE_FILE"
 
-                # Only reset/re-arm timer if LEASE_ARG is an explicit number (not 'keep')
                 if [[ "$LEASE_ARG" != "keep" ]]; then
                     clear_lease_timer
                     if (( LEASE_ARG > 0 )); then
                         NOW=$(date +%s)
                         echo $(( NOW + LEASE_ARG * 60 )) > "$EXPIRY_FILE"
+                        if [[ -n "${PKEXEC_UID:-}" && "${PKEXEC_UID}" -ne 0 ]]; then
+                            echo "${PKEXEC_UID}" > "$UID_FILE"
+                        fi
                         systemd-run --unit="$TIMER_UNIT" --on-active="${LEASE_ARG}m" \
                             /usr/bin/omarchy-shield-ctl apply daily 1 0 0 >/dev/null 2>&1
                         notify_user "normal" "Lab & Gaming Mode Active (${LEASE_ARG}m Lease)" "USB autosuspend OFF, dmesg unlocked, ptrace=${CUSTOM_PTRACE}."

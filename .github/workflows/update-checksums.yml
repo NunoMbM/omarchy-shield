@@ -19,14 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Calculate real SHA-256 hashes and update PKGBUILD
         run: |
+          # Limpa eventuais espaços invisíveis (NBSP) colados pelo browser
+          sed -i 's/\xc2\xa0/ /g' PKGBUILD omarchy-shield-ctl org.omarchy.shield.policy ShieldWidget.qml shell.qml
+
           H1=$(sha256sum omarchy-shield-ctl | awk '{print $1}')
           H2=$(sha256sum org.omarchy.shield.policy | awk '{print $1}')
           H3=$(sha256sum ShieldWidget.qml | awk '{print $1}')
           H4=$(sha256sum shell.qml | awk '{print $1}')
+
 
           python3 - <<EOF
           import re

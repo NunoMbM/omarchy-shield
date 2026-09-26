@@ -145,7 +145,7 @@ bind = SUPER SHIFT, L, exec, omarchy-shield-ctl apply lab 1 60 0
 
 ##  Security Model Notes
 
-* **Polkit Granularity:** Polkit authorizes execution of `/usr/bin/omarchy-shield-ctl` using `auth_admin` (no cached authentication window). Once authenticated, the script validates all positional arguments against a strict whitelist (`public|daily|lab`, `ptrace` `1|2`, `lease` `0-240|keep`, `dev_ports` `0|1`) before invoking `sysctl` or `ufw`.
+* **Pre-Escalation Validation & Polkit Granularity:** Positional arguments are validated against a strict whitelist (`public|daily|lab`, `ptrace` `1|2`, `lease` `0-240|keep`, `dev_ports` `0|1`) before invoking `pkexec`. Polkit authorizes `/usr/bin/omarchy-shield-ctl` using `auth_admin`(no cached authentication window).
 * **Whole-Binary Authorization Limitation (`pkexec`):** Because Polkit's `org.freedesktop.policykit.exec.path` mechanism binds authorization to the executable path (`/usr/bin/omarchy-shield-ctl`) rather than individual CLI subcommands, authenticating as an administrator permits execution of any valid subcommand (`apply`, `revoke-sudo`, or `bios`). Subcommand-level separation would require splitting each action into dedicated helper binaries or shipping custom JavaScript Polkit rules in `/usr/share/polkit-1/rules.d/`.
 * **Boot-Level Hardening:** For full kernel lockdown (`lockdown=integrity`) and heap zeroing (`init_on_alloc=1`), add `lsm=landlock,lockdown,yama,integrity,apparmor,bpf lockdown=integrity init_on_alloc=1` to `KERNEL_CMDLINE[default]` in `/etc/default/limine` and run `sudo limine-update`.
 
@@ -154,3 +154,14 @@ bind = SUPER SHIFT, L, exec, omarchy-shield-ctl apply lab 1 60 0
 ##  License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
+
+---
+
+### Detalhe importante antes de fazeres `git push` (Ordem dos Jobs no CI)
+
+Como tens duas GitHub Actions no repositório (`update-checksums.yml`[cite: 6] e a nova `ci.yml`), atenção a um detalhe clássico de concorrência em pipelines Arch Linux:
+* Quando fizeres `git push` com as alterações ao `omarchy-shield-ctl`, `ShieldWidget.qml` e `PKGBUILD`, os hashes SHA-256 antigos no `PKGBUILD` estarão temporariamente desatualizados até que o `update-checksums.yml` corra e faça o commit automático `chore(pkgbuild): update real sha256sums [skip ci]`[cite: 6].
+* Se o job `arch-packaging` no `ci.yml` correr `makepkg -s --nodeps` antes de os hashes serem atualizados, o `makepkg` vai falhar na verificação de `sha256sums`!
+* Para que o `ci.yml` valide o pacote em qualquer commit sem depender do commit assíncrono do bot, troca a linha `su builder -c "makepkg -s --nodeps --noconfirm"` no `.github/workflows/ci.yml` por:
+  ```yaml
+  su builder -c "makepkg -s --nodeps --skipchecksums --noconfirm"

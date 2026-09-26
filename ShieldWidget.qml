@@ -82,6 +82,8 @@ Item {
 
     // Called ONLY when clicking one of the 3 Mode Preset buttons
     function selectModePreset(targetMode) {
+        if (actionProc.running) return;
+
         let defaultPtrace = (targetMode === "public") ? 2 : 1;
         let defaultPorts = (targetMode === "public") ? "0" : (devPortsSwitch.checked ? "1" : "0");
         let leaseArg = (targetMode === "lab") ? root.configuredLeaseMins.toString() : "0";
@@ -104,6 +106,8 @@ Item {
 
     // Called when adjusting sliders/switches inside an active mode
     function updateLiveParameters(rearmLease) {
+        if (actionProc.running) return;
+
         let targetPtrace = Math.round(ptraceSlider.value).toString();
         let targetPorts = devPortsSwitch.checked ? "1" : "0";
         let leaseArg = "keep";
@@ -213,6 +217,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 6
+                    enabled: !actionProc.running
 
                     Button {
                         Layout.fillWidth: true
@@ -261,6 +266,7 @@ Item {
                         from: 0
                         to: 240
                         stepSize: 15
+                        enabled: !actionProc.running
                         Component.onCompleted: value = root.configuredLeaseMins
                         onMoved: root.configuredLeaseMins = Math.round(value)
                         onPressedChanged: {
@@ -296,7 +302,7 @@ Item {
                         from: 1
                         to: 2
                         stepSize: 1
-                        enabled: root.currentMode !== "public"
+                        enabled: !actionProc.running && root.currentMode !== "public"
                         Component.onCompleted: value = root.ptraceScope
                         onPressedChanged: {
                             if (!pressed) {
@@ -317,7 +323,7 @@ Item {
                     }
                     Switch {
                         id: devPortsSwitch
-                        enabled: root.currentMode !== "public"
+                        enabled: !actionProc.running && root.currentMode !== "public"
                         Component.onCompleted: checked = (root.devPortsActive === 1)
                         onClicked: root.updateLiveParameters(false)
                     }
@@ -369,11 +375,13 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
+                    enabled: !actionProc.running
 
                     Button {
                         Layout.fillWidth: true
                         text: "Revoke Sudo / AI Cache"
                         onClicked: {
+                            if (actionProc.running) return;
                             actionProc.command = ["/usr/bin/omarchy-shield-ctl", "revoke-sudo"];
                             actionProc.running = true;
                         }
@@ -383,6 +391,7 @@ Item {
                         Layout.fillWidth: true
                         text: "Reboot to UEFI"
                         onClicked: {
+                            if (actionProc.running) return;
                             actionProc.command = ["/usr/bin/omarchy-shield-ctl", "bios"];
                             actionProc.running = true;
                         }

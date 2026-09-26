@@ -9,6 +9,7 @@ on:
       - 'ShieldWidget.qml'
       - 'shell.qml'
       - 'PKGBUILD'
+      - '.github/workflows/update-checksums.yml'
   workflow_dispatch:
 
 permissions:
@@ -46,10 +47,31 @@ jobs:
 
       - name: Commit updated PKGBUILD if hashes changed
         run: |
-          if [[ -n $(git status --porcelain PKGBUILD) ]]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add PKGBUILD
-            git commit -m "chore(pkgbuild): update real sha256sums [skip ci]"
-            git push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [[ -z $(git status --porcelain PKGBUILD) ]]; then
+            echo "No checksum changes, nothing to commit."
+            exit 0
           fi
+
+          git add PKGBUILD
+          git commit -m "chore(pkgbuild): update real sha256sums [skip ci]"
+
+          # The remote main branch can move between checkout and push (e.g. a
+          # manual commit landing at the same time), which makes a plain
+          # 'git push' fail as non-fast-forward. Rebase onto the latest main
+          # and retry a few times before giving up.
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:main; then
+              echo "Push succeeded on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt), rebasing onto latest main..."
+            git fetch origin main
+            git rebase origin/main
+            sleep $(( RANDOM % 5 + 1 ))
+          done
+
+          echo "::error::Failed to push updated PKGBUILD after multiple attempts."
+          exit 1

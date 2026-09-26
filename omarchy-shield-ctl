@@ -12,6 +12,12 @@ TIMER_UNIT="omarchy-shield-lease"
 SUDOERS_AI_FILE="/etc/sudoers.d/omarchy-passwordless"
 UDEV_RULE_FILE="/run/udev/rules.d/99-omarchy-shield-usb.rules"
 
+DRY_RUN="${OMARCHY_SHIELD_DRY_RUN:-0}"
+if [[ "${1:-}" == "--dry-run" ]]; then
+    DRY_RUN=1
+    shift
+fi
+
 ACTION="${1:-status}"
 
 # ------------------------------------------------------------------------------
@@ -52,7 +58,7 @@ if [[ "$ACTION" == "status" ]]; then
         NOW=$(date +%s)
         if (( EXPIRY > NOW )); then
             LEASE_REM=$(( (EXPIRY - NOW + 59) / 60 ))
-        else
+        elif (( DRY_RUN == 0 )); then
             rm -f "$EXPIRY_FILE" 2>/dev/null || true
         fi
     fi
@@ -63,8 +69,63 @@ if [[ "$ACTION" == "status" ]]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 2. PRIVILEGE ESCALATION BOUNDARY
+# 2. STRICT INPUT VALIDATION (Runs BEFORE Polkit pkexec escalation)
 # ------------------------------------------------------------------------------
+case "$ACTION" in
+    apply)
+        TARGET_MODE="${2:-daily}"
+        CUSTOM_PTRACE="${3:-1}"
+        LEASE_ARG="${4:-keep}"
+        ENABLE_DEV_PORTS="${5:-0}"
+
+        if [[ ! "$TARGET_MODE" =~ ^(public|daily|lab)$ ]]; then
+            echo "Error: Invalid mode '$TARGET_MODE'. Expected: public, daily, lab." >&2
+            exit 1
+        fi
+        if [[ ! "$CUSTOM_PTRACE" =~ ^[12]$ ]]; then
+            echo "Error: Invalid ptrace_scope '$CUSTOM_PTRACE'. Expected: 1 or 2." >&2
+            exit 1
+        fi
+        if [[ ! "$LEASE_ARG" =~ ^(keep|[0-9]+)$ ]]; then
+            echo "Error: Invalid lease argument '$LEASE_ARG'. Expected: 'keep' or integer 0-240." >&2
+            exit 1
+        fi
+        if [[ "$LEASE_ARG" != "keep" ]] && (( LEASE_ARG < 0 || LEASE_ARG > 240 )); then
+            echo "Error: Lease minutes must be between 0 and 240." >&2
+            exit 1
+        fi
+        if [[ ! "$ENABLE_DEV_PORTS" =~ ^[01]$ ]]; then
+            echo "Error: Invalid dev_ports flag '$ENABLE_DEV_PORTS'. Expected: 0 or 1." >&2
+            exit 1
+        fi
+        ;;
+    revoke-sudo|bios)
+        ;;
+    *)
+        echo "Usage: omarchy-shield-ctl [--dry-run] {status|apply <public|daily|lab> <1|2> <lease_mins|keep> <0|1>|revoke-sudo|bios}" >&2
+        exit 1
+        ;;
+esac
+
+# ------------------------------------------------------------------------------
+# 3. DRY-RUN EXECUTION & PRIVILEGE ESCALATION BOUNDARY
+# ------------------------------------------------------------------------------
+if (( DRY_RUN == 1 )); then
+    case "$ACTION" in
+        apply)
+            printf '[DRY-RUN] apply mode=%s ptrace=%s lease=%s dev_ports=%s\n' \
+                "$TARGET_MODE" "$CUSTOM_PTRACE" "$LEASE_ARG" "$ENABLE_DEV_PORTS"
+            ;;
+        revoke-sudo)
+            printf '[DRY-RUN] revoke-sudo: clear /run/sudo/ts/* and %s\n' "$SUDOERS_AI_FILE"
+            ;;
+        bios)
+            printf '[DRY-RUN] bios: systemctl reboot --firmware-setup\n'
+            ;;
+    esac
+    exit 0
+fi
+
 if [[ "$ACTION" == "revoke-sudo" ]]; then
     sudo -k 2>/dev/null || true
 fi
@@ -74,7 +135,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 3. HELPER FUNCTIONS (Root context)
+# 4. HELPER FUNCTIONS (Root context)
 # ------------------------------------------------------------------------------
 resolve_target_uid() {
     # Priority 1: Direct caller UID provided by Polkit pkexec
@@ -170,36 +231,10 @@ sync_dev_ports() {
 }
 
 # ------------------------------------------------------------------------------
-# 4. PRIVILEGED ACTIONS & STRICT INPUT VALIDATION
+# 5. PRIVILEGED EXECUTION
 # ------------------------------------------------------------------------------
 case "$ACTION" in
     apply)
-        TARGET_MODE="${2:-daily}"
-        CUSTOM_PTRACE="${3:-1}"
-        LEASE_ARG="${4:-keep}"
-        ENABLE_DEV_PORTS="${5:-0}"
-
-        if [[ ! "$TARGET_MODE" =~ ^(public|daily|lab)$ ]]; then
-            echo "Error: Invalid mode '$TARGET_MODE'. Expected: public, daily, lab." >&2
-            exit 1
-        fi
-        if [[ ! "$CUSTOM_PTRACE" =~ ^[12]$ ]]; then
-            echo "Error: Invalid ptrace_scope '$CUSTOM_PTRACE'. Expected: 1 or 2." >&2
-            exit 1
-        fi
-        if [[ ! "$LEASE_ARG" =~ ^(keep|[0-9]+)$ ]]; then
-            echo "Error: Invalid lease argument '$LEASE_ARG'. Expected: 'keep' or integer 0-240." >&2
-            exit 1
-        fi
-        if [[ "$LEASE_ARG" != "keep" ]] && (( LEASE_ARG < 0 || LEASE_ARG > 240 )); then
-            echo "Error: Lease minutes must be between 0 and 240." >&2
-            exit 1
-        fi
-        if [[ ! "$ENABLE_DEV_PORTS" =~ ^[01]$ ]]; then
-            echo "Error: Invalid dev_ports flag '$ENABLE_DEV_PORTS'. Expected: 0 or 1." >&2
-            exit 1
-        fi
-
         case "$TARGET_MODE" in
             public)
                 clear_lease_timer
@@ -264,10 +299,5 @@ case "$ACTION" in
     bios)
         notify_user "critical" "Rebooting to UEFI" "System is restarting into firmware setup..."
         systemctl reboot --firmware-setup
-        ;;
-
-    *)
-        echo "Usage: omarchy-shield-ctl {status|apply <public|daily|lab> <1|2> <lease_mins|keep> <0|1>|revoke-sudo|bios}" >&2
-        exit 1
         ;;
 esac

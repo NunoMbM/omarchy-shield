@@ -74,21 +74,11 @@ Omarchy plugin to improve security
 Clone the repository, generate the SHA-256 checksums, and build with `makepkg`:
 
 ```bash
-git clone [https://github.com/NunoMbM/omarchy-shield.git](https://github.com/NunoMbM/omarchy-shield.git)
+git clone https://github.com/NunoMbM/omarchy-shield.git
 cd omarchy-shield
-updpkgsums
 makepkg -si
 ```
 
-### Option 2: Install via AUR Helper (`yay` / `paru`)
-
-Once published to the AUR:
-
-```bash
-yay -S omarchy-shield
-```
-
----
 
 ##  Setup & Quickshell Integration
 
@@ -155,6 +145,7 @@ bind = SUPER SHIFT, L, exec, omarchy-shield-ctl apply lab 1 60 0
 ##  Security Model Notes
 
 * **Polkit Granularity:** Polkit authorizes execution of `/usr/bin/omarchy-shield-ctl` using `auth_admin` (no cached authentication window). Once authenticated, the script validates all positional arguments against a strict whitelist (`public|daily|lab`, `ptrace` `1|2`, `lease` `0-240|keep`, `dev_ports` `0|1`) before invoking `sysctl` or `ufw`.
+* **Whole-Binary Authorization Limitation (`pkexec`):** Because Polkit's `org.freedesktop.policykit.exec.path` mechanism binds authorization to the executable path (`/usr/bin/omarchy-shield-ctl`) rather than individual CLI subcommands, authenticating as an administrator permits execution of any valid subcommand (`apply`, `revoke-sudo`, or `bios`). Subcommand-level separation would require splitting each action into dedicated helper binaries or shipping custom JavaScript Polkit rules in `/usr/share/polkit-1/rules.d/`.
 * **Boot-Level Hardening:** For full kernel lockdown (`lockdown=integrity`) and heap zeroing (`init_on_alloc=1`), add `lsm=landlock,lockdown,yama,integrity,apparmor,bpf lockdown=integrity init_on_alloc=1` to `KERNEL_CMDLINE[default]` in `/etc/default/limine` and run `sudo limine-update`.
 
 ---

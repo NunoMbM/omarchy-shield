@@ -26,13 +26,14 @@ source=(
     "org.omarchy.shield.policy"
     "ShieldWidget.qml"
     "shell.qml"
+    "LICENSE"
 )
 sha256sums=(
     'b68bcd19ebdf3f78ab6cce69fac478f0e3e209d441df5da8ae5813618449e09c'
     'cca91031c3a8191189939497dc0f36bb6905f6436178da8a705528f8a520b5e1'
     '7cb1ff9917498ab8a8ce7b7697fa71474cec013f73b412f03dcdc4dedd04dd80'
     '839e1d76aa962978bbd7f7acaffd12eff89dd5431f115281e18e0b60e2021d45'
-    'aa6321a7ff0ad568eafea7fe6492a707fdc29c0d703b495d960832715f3637ee'
+    'SKIP'
 )
 
 package() {
@@ -47,8 +48,6 @@ package() {
     install -Dm644 "${srcdir}/shell.qml" \
         "${pkgdir}/usr/share/quickshell/omarchy-shield/shell.qml"
 
-    if [[ -f "${startdir}/LICENSE" ]]; then
-        install -Dm644 "${startdir}/LICENSE" \
-            "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
-    fi
+    install -Dm644 "${srcdir}/LICENSE" \
+        "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }

@@ -18,6 +18,7 @@ post_remove() {
     # Clean up transient runtime files if still active
     rm -f /run/omarchy-shield.state \
           /run/omarchy-shield.expiry \
-          /run/omarchy-shield.devports 2>/dev/null || true
+          /run/omarchy-shield.devports \
+          /run/omarchy-shield.uid 2>/dev/null || true
     echo ":: omarchy-shield runtime files cleaned up."
 }
